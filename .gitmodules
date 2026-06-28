@@ -3,4 +3,4 @@
 	url = https://github.com/KernelSU-Next/KernelSU-Next.git
 [submodule "AnyKernel3"]
 	path = AnyKernel3
-	url = https://github.com/osm0sis/AnyKernel3.git
+	url = https://github.com/Bryxian/kernel_packaging_anykernel3.git
