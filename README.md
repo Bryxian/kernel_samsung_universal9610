@@ -8,7 +8,7 @@
 # SultanKernel (WIP)
 _Rule Your Galaxy ⭐. An optimized, One UI and AOSP kernel for Samsung Galaxy devices using the Exynos 9610 platform._
 
-#### Common FreshMint kernel source for the Exynos 9610 and 9611 Platform
+#### Common SultanKernel source for the Exynos 9610 Platform
 
 Currently supports the following devices:
 
