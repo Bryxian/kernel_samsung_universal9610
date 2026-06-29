@@ -12,6 +12,7 @@
 #include <linux/hash.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/poll.h>
 
 void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)
 {
@@ -43,6 +44,17 @@ void add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue
 	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive);
+
+void add_wait_queue_exclusive_lifo(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
+{
+       unsigned long flags;
+
+       wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
+       spin_lock_irqsave(&wq_head->lock, flags);
+       __add_wait_queue(wq_head, wq_entry);
+       spin_unlock_irqrestore(&wq_head->lock, flags);
+}
+EXPORT_SYMBOL(add_wait_queue_exclusive_lifo);
 
 void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
@@ -122,16 +134,12 @@ static void __wake_up_common_lock(struct wait_queue_head *wq_head, unsigned int 
 	bookmark.func = NULL;
 	INIT_LIST_HEAD(&bookmark.entry);
 
-	spin_lock_irqsave(&wq_head->lock, flags);
-	nr_exclusive = __wake_up_common(wq_head, mode, nr_exclusive, wake_flags, key, &bookmark);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
-
-	while (bookmark.flags & WQ_FLAG_BOOKMARK) {
+	do {
 		spin_lock_irqsave(&wq_head->lock, flags);
 		nr_exclusive = __wake_up_common(wq_head, mode, nr_exclusive,
 						wake_flags, key, &bookmark);
 		spin_unlock_irqrestore(&wq_head->lock, flags);
-	}
+	} while (bookmark.flags & WQ_FLAG_BOOKMARK);
 }
 
 /**
@@ -214,6 +222,13 @@ void __wake_up_sync(struct wait_queue_head *wq_head, unsigned int mode, int nr_e
 }
 EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
 
+void __wake_up_pollfree(struct wait_queue_head *wq_head)
+{
+	__wake_up(wq_head, TASK_NORMAL, 0, (void *)(POLLHUP | POLLFREE));
+	/* POLLFREE must have cleared the queue. */
+	WARN_ON_ONCE(waitqueue_active(wq_head));
+}
+
 /*
  * Note: we use "set_current_state()" _after_ the wait-queue add,
  * because we need a memory barrier there on SMP, so that any
@@ -253,6 +268,19 @@ prepare_to_wait_exclusive(struct wait_queue_head *wq_head, struct wait_queue_ent
 	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
+
+void prepare_to_wait_exclusive_lifo(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
+{
+       unsigned long flags;
+
+       wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
+       spin_lock_irqsave(&wq_head->lock, flags);
+       if (list_empty(&wq_entry->entry))
+               __add_wait_queue(wq_head, wq_entry);
+       set_current_state(state);
+       spin_unlock_irqrestore(&wq_head->lock, flags);
+}
+EXPORT_SYMBOL(prepare_to_wait_exclusive_lifo);
 
 void init_wait_entry(struct wait_queue_entry *wq_entry, int flags)
 {
@@ -397,7 +425,7 @@ void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_en
 }
 EXPORT_SYMBOL(finish_wait);
 
-int autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
+int __sched autoremove_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
 {
 	int ret = default_wake_function(wq_entry, mode, sync, key);
 
@@ -432,7 +460,7 @@ static inline bool is_kthread_should_stop(void)
  * }						smp_mb(); // C
  * remove_wait_queue(&wq_head, &wait);		wq_entry->flags |= WQ_FLAG_WOKEN;
  */
-long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout)
+long __sched wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout)
 {
 	/*
 	 * The below executes an smp_mb(), which matches with the full barrier
@@ -457,7 +485,7 @@ long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout)
 }
 EXPORT_SYMBOL(wait_woken);
 
-int woken_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
+int __sched woken_wake_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync, void *key)
 {
 	/* Pairs with the smp_store_mb() in wait_woken(). */
 	smp_mb(); /* C */

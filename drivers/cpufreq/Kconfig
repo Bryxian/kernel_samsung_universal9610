@@ -110,12 +110,12 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
-config CPU_FREQ_DEFAULT_GOV_BLU_SCHEDUTIL
-	bool "blu_schedutil"
-	select CPU_FREQ_GOV_BLU_SCHEDUTIL
-	select CPU_FREQ_GOV_PERFORMANCE
+config CPU_FREQ_DEFAULT_GOV_ENERGY_ADAPTIVE
+	bool "energy_adaptive"
+	depends on SMP
+	select CPU_FREQ_GOV_ENERGY_ADAPTIVE
 	help
-	  Use the 'blu_schedutil' CPUFreq governor by default. If unsure,
+	  Use the 'energy_adaptive' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
@@ -217,34 +217,50 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config FREQVAR_TUNE
-	bool "CPU frequency variant tuner"
-	depends on SCHED_EMS && CPU_FREQ_GOV_SCHEDUTIL
-	help
-	  This option provides the controller which tunes system performance
-	  as frequency variant.
-
-	  Say N if unsure.
-
-config CPU_FREQ_GOV_BLU_SCHEDUTIL
-	tristate "'blu_schedutil' cpufreq policy governor"
-	depends on CPU_FREQ
+config CPU_FREQ_GOV_ENERGY_ADAPTIVE
+	bool "'energy_adaptive' cpufreq policy governor"
+	depends on CPU_FREQ && SMP && SCHED_EMS
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
+	select FFSI
 	help
 	  This governor makes decisions based on the utilization data provided
-	  by the scheduler.  It sets the CPU frequency to be proportional to
-	  the utilization/capacity ratio coming from the scheduler.  If the
-	  utilization is frequency-invariant, the new frequency is also
-	  proportional to the maximum available frequency.  If that is not the
-	  case, it is proportional to the current frequency of the CPU.  The
-	  frequency tipping point is at utilization/capacity equal to 80% in
-	  both cases.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called cpufreq_blu_schedutil.
+	  by cpu activated time and the scheduler and infers them to learn based
+	  on given utilization data.
 
 	  If in doubt, say N.
+
+if CPU_FREQ_GOV_ENERGY_ADAPTIVE
+
+config ENERGY_ADAPTIVE_UP_RATE_LIMIT_FAST
+	int "Default up rate-limit for energy_adaptive on fast cluster"
+	default 4000
+	help
+	  This sets energy_adaptive's default frequency up rate-limit for fast cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_FAST
+	int "Default down rate-limit for energy_adaptive on fast cluster"
+	default 8000
+	help
+	  This sets energy_adaptive's default frequency down rate-limit for fast cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_UP_RATE_LIMIT_SLOW
+	int "Default up rate-limit for energy_adaptive on slow cluster"
+	default 4000
+	help
+	  This sets energy_adaptive's default frequency up rate-limit for slow cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_SLOW
+	int "Default down rate-limit for energy_adaptive on slow cluster"
+	default 8000
+	help
+	  This sets energy_adaptive's default frequency down rate-limit for slow cluster in
+	  microseconds.
+
+endif
 
 comment "CPU frequency scaling drivers"
 
@@ -270,12 +286,6 @@ config CPUFREQ_DT_PLATDEV
 	  supported platforms.
 
 	  If in doubt, say N.
-
-config FINGERPRINT_BOOST
-	bool "Fingerprint Boost"
-	default n
-	help
-	  Boosts available CPUs to max frequency on fingerprint sensor input.
 
 if X86
 source "drivers/cpufreq/Kconfig.x86"

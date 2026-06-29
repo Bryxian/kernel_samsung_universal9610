@@ -1,18 +1,20 @@
-Linux kernel
-============
+*****************************************************
+              ____        ____
+             / __/ __ __ / / /____ ____
+             _\ \ / // // / __/ _ '/ _ \
+            /___/ \_,_//_/\__/\_,_/_//_/
+*****************************************************
 
-This file was moved to Documentation/admin-guide/README.rst
+# SultanKernel (WIP)
+_Rule Your Galaxy ⭐. An optimized, One UI and AOSP kernel for Samsung Galaxy devices using the Exynos 9610 platform._
 
-Please notice that there are several guides for kernel developers and users.
-These guides can be rendered in a number of formats, like HTML and PDF.
+#### Common FreshMint kernel source for the Exynos 9610 and 9611 Platform
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.
+Currently supports the following devices:
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
-See Documentation/00-INDEX for a list of what is contained in each file.
+- Samsung Galaxy A50 (`a50`)
+- Samsung Galaxy A50s (`a50s`)
+- Samsung Galaxy M30s (`m30s`)
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+Support for other devices will come in the future.
+
